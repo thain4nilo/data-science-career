@@ -1,0 +1,182 @@
+---
+title: "Projeto Descriptive Analytics"
+author: "Ana Luiza, Thaina Nilo e Alberto Granja"
+date: "`r Sys.Date()`"
+output: html_document
+editor_options: 
+  markdown: 
+    wrap: sentence
+---
+
+```{r ler biblioteca, include=FALSE}
+library(dplyr)
+library(ggplot2)
+```
+
+## Importar base de dados
+
+```{r ler dados}
+df <- read.csv("ds_salaries.csv")
+```
+
+## Descrição do contexto dos dados:
+
+A ciência dos dados é um domínio em rápido crescimento e os cientistas de dados desempenham um papel crucial na análise e interpretação de grandes volumes de dados.
+À medida que esta profissão se torna cada vez mais procurada, é importante compreender os fatores que podem influenciar os salários dos Cientistas de Dados.
+Esta análise foca a investigação desses fatores.
+A tabela apresenta possíveis fatores que influenciam os salários dos Cientistas de Dados.
+Cada observação representa um cientista de dados que respondeu a pesquisa.
+
+### Variáveis:
+
+• *work_year*: ano em que o salário foi pago.
+• *experience_level*: nível de exeriência do trabalho durante o ano.
+• EN \> Entry-level / Junior • MI \> Mid-level / Intermediate • SE \> Senior-level / Expert • EX \> Executive-level / Director • *employment_type*: tipo de vínculo empregatício.
+• PT \> Part-time • FT \> Full-time • CT \> Contract • FL \> Freelance • *job_title*: título da função.
+• *salary*: salário bruto.
+• *salary_currency*: moeda do salário.
+• *salary_in_usd*: conversão do salário em dólar (anual).
+• *employee_residence*: país de residência do empregado no ano.
+• *remote_ratio*: total de trabalho desempenhado remotamente (em horas).
+• *company_location*: país onde está o escritório principal do empregador.
+• *company_size*: tamanho da empresa considerando a quantidade de empregados.
+
+Ajuste das variáveis categóricas para melhor entendimento e exploração dos dados
+
+```{r tradução de dados}
+df <- df %>% mutate(experience_level = case_when(experience_level == "EN" ~ "1.Junior",
+                                                       experience_level == "MI" ~ "2.Pleno",
+                                                       experience_level == "SE" ~ "3.Senior",
+                                                       experience_level == "EX" ~ "4.Executivo"),
+                          modelo_trabalho = case_when( remote_ratio == 100 ~ "Online",
+                                                       remote_ratio == 50 ~ "Hibrido",
+                                                       remote_ratio == 0 ~ "Presencial"),
+                          employment_type = case_when(employment_type == "PT" ~ "Tempo parcial",
+                                                           employment_type == "FT" ~ "Tempo integral",
+                                                           employment_type == "CT" ~ "Contrato",
+                                                           employment_type == "FL" ~ "Freelance"),
+                          company_size = case_when(company_size == "S" ~"Pequena",
+                                                   company_size == "M" ~"Media",
+                                                   company_size == "L" ~"Grande")
+                          )
+
+                                                        
+```
+
+```{r descrevendo as colunas e tipos, echo = False}
+str(df)
+```
+
+## Identificar se o dado é Tidy
+
+-   Cada observação é uma linha que representa um cientista de dados que respondeu à pesquisa.
+-   Cada variável é uma coluna que contém informações sobre o cientista.
+
+Desta forma, os dados estão no padrão Tidy.
+
+```{r amostra dos dados, echo=FALSE}
+head(df)
+```
+
+```{r histograma de salarios}
+options(scipen = 999)
+hist(df$salary_in_usd, xlab = "salarios em dolar", ylab = "Frequência",breaks = 100)
+boxplot(df$salary_in_usd, data = df, main = "Boxplot Salario em dolar", cex.axis = 0.5)                 
+```
+
+Verificado que haviam outliers no dataset, contudo, antes de pensar em removê-los é importante entendê-los.
+
+Avaliando a distribuição das amostras por países e ordenando do menor para o maior, verifica-se que 80% do dataset trata-se de empresas localizadas nos Estados Unidos, desta forma, para análises comparativas é apropriado descartar os demais dados, de forma a evitar trabalhar com realidades de países muito diferentes e que não estão bem representados com os dados.
+
+```{r analisar dados}
+df_paises_soma <- df %>% group_by(company_location) %>%
+  summarise(Amostras = n()) %>%
+  arrange(-Amostras)
+df_paises_soma
+```
+
+Separando as empresas dos Estados Unidos para análise.
+
+```{r filtrar dados US}
+df_us <- filter(df,company_location == "US")
+
+#hist()
+options(scipen = 999)
+hist(df_us$salary_in_usd, xlab = "salarios em dolar (US)", ylab = "Frequência",breaks = 100)
+boxplot(df_us$salary_in_usd, main = "Boxplot Salario em dolar (US)", cex.axis = 0.5)  
+```
+
+*Há relevância quanto a modalidade de trabalho e o salário para cada nível de experiência?*
+
+```{r salario vs experiencia}
+# Criar um gráfico de boxplot
+boxplot(salary_in_usd ~ experience_level, data = df_us, main = "Boxplot Salario por nível de experiencia", cex.axis = 0.5)
+```
+
+Podemos realizar esta análise calculando o intervalo interquartil de cada nivel de experiência.
+
+```{r calculando 1.5*IQR}
+
+limites_outlier <- function(x){
+  q1 <- quantile(x, 0.25)
+  q3 <- quantile(x, 0.75)
+  iqr <- IQR(x)
+  inf <- q1 - 1.5*iqr
+  sup <- q3 + 1.5*iqr
+  resultado <- c(inf,sup)
+  return(resultado)
+  }
+
+df_us <- df_us %>% group_by(experience_level)%>%
+  mutate(inf = limites_outlier(salary_in_usd)[1],
+         sup = limites_outlier(salary_in_usd)[2],
+         outlier = case_when(salary_in_usd < inf ~ "Inferior",
+                             salary_in_usd > sup ~ "Superior")
+         ) 
+
+df_outlier <- df_us %>% filter(!is.na(outlier))
+
+
+df_outlier %>%
+  group_by(outlier,experience_level,employment_type)%>%
+  summarise(quantidade = n())
+
+```
+
+Observa-seq há muitos outliers nos níveis "Pleno" e "sênior".
+Por este motivo, deciciu-se analisar os níveis de experiência por modelo de trabalho.
+
+```{r modalidade vs salario / nivel, message=FALSE, warning=FALSE, paged.print=TRUE}
+modalidade <- df_us %>% group_by(experience_level,modelo_trabalho) %>%
+  summarise(salario_medio = mean(salary_in_usd),
+            quantidade = n())
+modalidade
+```
+
+Analisou-se também a média dos salários por "job title" considerando a prensença e a ausência dos outliers
+
+```{r salario vs carreira}
+jobtitle <- df_us %>%
+  group_by(job_title)%>%
+  summarise(quantidade = n()) %>%
+  arrange(-quantidade)
+
+jobtitle
+```
+
+```{r filtrando carreiras de interesse}
+df_jobtitle_sem_outlier <- df_us %>% 
+  filter(job_title %in% c("Machine Learning Engineer","Data Engineer","Data Analyst","Data Scientist") & is.na(outlier))%>%
+  group_by(experience_level,job_title) %>%
+  summarise(media_sem_outlier = mean(salary_in_usd))
+
+df_jobtitle <- df_us %>% 
+  filter(job_title %in% c("Machine Learning Engineer","Data Engineer","Data Analyst","Data Scientist")) %>%
+  group_by(experience_level,job_title) %>%
+  summarise(media_com_outlier = mean(salary_in_usd))
+
+df_comparativo <- merge(df_jobtitle,df_jobtitle_sem_outlier) %>%
+  mutate(delta = media_com_outlier - media_sem_outlier) %>%
+  arrange(delta)
+df_comparativo
+```
