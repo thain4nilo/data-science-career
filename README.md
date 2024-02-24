@@ -1,6 +1,6 @@
 # 📊 Carreira em Dados
 
-Este projeto consiste na análise descritiva de uma base de dados contendo informações sobre salários de empregos na área de dados, retirada do Kaggle, para fins acadêmicos. Este trabalho foi desenvolvido para os projetos das disciplinas de Visual Analytics e Estatística Descritiva do curso de MBA em BI e Analytics.
+Este projeto consiste na análise descritiva de uma base de dados contendo informações sobre salários de empregos na área de dados, retirada do [Kaggle](https://www.kaggle.com/datasets/saurabhshahane/data-science-jobs-salaries), para fins acadêmicos. Este trabalho foi desenvolvido para os projetos das disciplinas de Visual Analytics e Estatística Descritiva do curso de MBA em BI e Analytics.
 
 ## Desenvolvedores
 - [Alberto Granja](https://www.linkedin.com/in/albertogranja/)
